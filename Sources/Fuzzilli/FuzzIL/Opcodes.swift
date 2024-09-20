@@ -205,4 +205,5 @@ enum Opcode {
     case explore(Explore)
     case probe(Probe)
     case fixup(Fixup)
+    case differentialHash(DifferentialHash)
 }

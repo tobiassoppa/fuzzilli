@@ -36,6 +36,14 @@ public class Fuzzer {
     /// The script runner used to execute generated scripts.
     public let runner: ScriptRunner
 
+    /// The script runners used to compare against in differential executions.
+    public let referenceRunner: ScriptRunner?
+
+    /// Will only be true if --differentialFuzzing is set.
+    public var hasDifferentialFuzzingEnabled: Bool {
+        return referenceRunner != nil
+    }
+
     /// The fuzzer engine producing new programs from existing ones and executing them.
     public let engine: FuzzEngine
 
@@ -155,7 +163,7 @@ public class Fuzzer {
 
     /// Constructs a new fuzzer instance with the provided components.
     public init(
-        configuration: Configuration, scriptRunner: ScriptRunner, engine: FuzzEngine, mutators: WeightedList<Mutator>,
+        configuration: Configuration, scriptRunner: ScriptRunner, referenceRunner: ScriptRunner?, engine: FuzzEngine, mutators: WeightedList<Mutator>,
         codeGenerators: WeightedList<CodeGenerator>, programTemplates: WeightedList<ProgramTemplate>, evaluator: ProgramEvaluator,
         environment: Environment, lifter: Lifter, corpus: Corpus, minimizer: Minimizer, queue: DispatchQueue? = nil
     ) {
@@ -175,6 +183,7 @@ public class Fuzzer {
         self.lifter = lifter
         self.corpus = corpus
         self.runner = scriptRunner
+        self.referenceRunner = referenceRunner
         self.minimizer = minimizer
         self.logger = Logger(withLabel: "Fuzzer")
 
@@ -236,6 +245,7 @@ public class Fuzzer {
 
         // Initialize the script runner first so we are able to execute programs.
         runner.initialize(with: self)
+        referenceRunner?.initialize(with: self)
 
         // Then initialize all components.
         engine.initialize(with: self)
@@ -397,6 +407,10 @@ public class Fuzzer {
             // from another instance triggers a crash in this instance.
             processCrash(program, withSignal: termsig, withStderr: execution.stderr, withStdout: execution.stdout, origin: origin, withExectime: execution.execTime)
 
+        case .differential:
+            // Here we explicitly deal with the possibility that an interesting sample from another instance triggers a differential in this instance.
+            processDifferential(program, withStderr: execution.stderr, withStdout: execution.stdout, origin: origin, withExectime: execution.execTime)
+
         case .succeeded:
             var imported = false
             if let aspects = evaluator.evaluate(execution) {
@@ -432,6 +446,21 @@ public class Fuzzer {
         }
     }
 
+    /// Imports a differential program into this fuzzer.
+    ///
+    /// Similar to importProgram, but will make sure to generate a DifferentialFound event even if the differential does not reproduce.
+    public func importDifferential(_ program: Program, origin: ProgramOrigin) {
+        dispatchPrecondition(condition: .onQueue(queue))
+
+        let execution = execute(program, purpose: .programImport)
+        if case .differential = execution.outcome {
+            processDifferential(program, withStderr: execution.stderr, withStdout: execution.stdout, origin: origin, withExectime: execution.execTime)
+        } else {
+            // Non-deterministic differential
+            dispatchEvent(events.DifferentialFound, data: (program, behaviour: .flaky, isUnique: true, origin: origin))
+        }
+    }
+
     /// Schedules the given corpus of programs to be imported into this fuzzer.
     ///
     /// Corpus import happens asynchronously as it may take a considerable amount of time (each program
@@ -463,6 +492,41 @@ public class Fuzzer {
         return currentCorpusImportJob.progress()
     }
 
+    private func treatCrashAsFailure(willMutate execution: inout Execution, withCode code: Int) {
+        // Example: Setting the flag --correctness-fuzzer-suppressions will suppress certain unspecified behaviors. As
+        // a result, the program will be aborted (for instance when the stack overflows, string exceeds max length etc.).
+        // If such crashes occur, treat them as a failure instead.
+        let asFailure = config.differentialCrashingFalsePositives.contains {
+            x in execution.stderr.contains(x)
+        }
+
+        if asFailure {
+            execution.outcome = .failed(code)
+        }
+    }
+
+    private func executeReferenceRunner(_ script: String, willMutate previousExecution: inout Execution, withTimeout timeout: UInt32? = nil, purpose: ExecutionPurpose) {
+        assert(referenceRunner!.isInitialized)
+
+        var referenceExecution = referenceRunner!.run(script, withTimeout: timeout ?? config.timeout)
+        treatCrashAsFailure(willMutate: &referenceExecution, withCode: 0)
+
+        // TODO(tobias@soppa.me): How to handle the execTime? Track individually, sum up, ...?
+        // previousExecution.execTime += referenceExecution.execTime
+
+        // Dont dispatch PostExecute, instead handle all in PostDifferentialExecute so we can track more fine grained what happens.
+        dispatchEvent(events.PostExecute, data: referenceExecution) // For NOW its ok, but remove!
+        dispatchEvent(events.PostDifferentialExecute, data: referenceExecution)
+
+        // It only makes sense to compare the differential hashes if both are succeeded.
+        if previousExecution.outcome == .succeeded && referenceExecution.outcome == .succeeded {
+            // TODO(tobias@soppa.me): Change that the exec hash in V8 gets initialized with the magic number 0xF055, but in D8 and Fuzzilli with 0.
+            if previousExecution.differentialResult != referenceExecution.differentialResult {
+                previousExecution.outcome = .differential
+            }
+        }
+    }
+
     /// Executes a program.
     ///
     /// This will first lift the given FuzzIL program to the target language, then use the configured script runner to execute it.
@@ -479,8 +543,16 @@ public class Fuzzer {
         let script = lifter.lift(program)
 
         dispatchEvent(events.PreExecute, data: (program, purpose))
-        let execution = runner.run(script, withTimeout: timeout ?? config.timeout)
+        var execution = runner.run(script, withTimeout: timeout ?? config.timeout)
+        if hasDifferentialFuzzingEnabled {
+            // Only mutate execution after ensuring differential fuzzing is enabled. But do so before sending PostExecute.
+            treatCrashAsFailure(willMutate: &execution, withCode: 0)
+        }
         dispatchEvent(events.PostExecute, data: execution)
+
+        if hasDifferentialFuzzingEnabled {
+            executeReferenceRunner(script, willMutate: &execution, withTimeout: timeout ?? config.timeout, purpose: purpose)
+        }
 
         return execution
     }
@@ -592,6 +664,50 @@ public class Fuzzer {
 
         fuzzGroup.enter()
         minimizer.withMinimizedCopy(program, withAspects: ProgramAspects(outcome: .crashed(termsig))) { minimizedProgram in
+            self.fuzzGroup.leave()
+            processCommon(minimizedProgram)
+        }
+    }
+
+    func processDifferential(_ program: Program, withStderr stderr: String, withStdout stdout: String, origin: ProgramOrigin, withExectime exectime: TimeInterval) {
+        assert(hasDifferentialFuzzingEnabled)
+
+        func processCommon(_ program: Program) {
+            let hasDiffInfo = program.comments.at(.footer)?.contains("DIFFERENTIAL INFO") ?? false
+            if !hasDiffInfo {
+                program.comments.add("DIFFERENTIAL INFO", at: .footer)
+                program.comments.add("==========", at: .footer)
+                if let tag = config.tag {
+                    program.comments.add("INSTANCE TAG: \(tag)", at: .footer)
+                }
+                program.comments.add("STDERR:", at: .footer)
+                program.comments.add(stderr.trimmingCharacters(in: .newlines), at: .footer)
+                program.comments.add("STDOUT:", at: .footer)
+                program.comments.add(stdout.trimmingCharacters(in: .newlines), at: .footer)
+                program.comments.add("FUZZER ARGS: \(config.arguments.joined(separator: " "))", at: .footer)
+                program.comments.add("TARGET (JIT) ARGS: \(runner.processArguments.joined(separator: " "))", at: .footer)
+                program.comments.add("TARGET (INTERPRETER) ARGS: \(referenceRunner!.processArguments.joined(separator: " "))", at: .footer)
+                program.comments.add("CONTRIBUTORS: \(program.contributors.map({ $0.name }).joined(separator: ", "))", at: .footer)
+                program.comments.add("EXECUTION TIME: \(Int(exectime * 1000))ms", at: .footer)
+            }
+            assert(program.comments.at(.footer)?.contains("DIFFERENTIAL INFO") ?? false)
+
+            // Check for uniqueness only after minimization
+            let execution = execute(program, withTimeout: self.config.timeout * 2, purpose: .checkForDeterministicBehavior)
+            if case .differential = execution.outcome {
+                let isUnique = evaluator.evaluateCrash(execution) != nil
+                dispatchEvent(events.DifferentialFound, data: (program, .deterministic, isUnique, origin))
+            } else {
+                dispatchEvent(events.DifferentialFound, data: (program, .flaky, true, origin))
+            }
+        }
+
+        if !origin.requiresMinimization() {
+            return processCommon(program)
+        }
+
+        fuzzGroup.enter()
+        minimizer.withMinimizedCopy(program, withAspects: ProgramAspects(outcome: .differential)) { minimizedProgram in
             self.fuzzGroup.leave()
             processCommon(minimizedProgram)
         }
@@ -771,6 +887,40 @@ public class Fuzzer {
             logger.warning("Cannot check if crashes are detected as there are no startup tests that should cause a crash")
         }
 
+        if config.differentialFuzzing {
+            // for test in config.differentialTests {
+            //     b = makeBuilder()
+            //     b.eval(test)
+            //     execution = execute(b.finalize(), purpose: .startup, differentialResult: true)
+            //     guard case .differential = execution.outcome else {
+            //         logger.fatal("Testcase \"\(test)\" did not produce a differential")
+            //     }
+            //     maxExecutionTime = max(maxExecutionTime, execution.execTime)
+            // }
+
+            if config.differentialTests.isEmpty {
+                logger.warning("No differentialTests specified. Cannot check if differentials are detected.")
+            } else {
+                assert(true == false, "Not Implemented.")
+            }
+
+            // for test in config.differentialTestsInvariant {
+            //     b = makeBuilder()
+            //     b.eval(test)
+            //     execution = execute(b.finalize(), purpose: .startup, differentialResult: true)
+            //     if case .differential = execution.outcome {
+            //         logger.fatal("Testcase \"\(test)\" did produce a differential")
+            //     }
+            //     maxExecutionTime = max(maxExecutionTime, execution.execTime)
+            // }
+
+            if config.differentialTestsInvariant.isEmpty {
+                logger.warning("No differentialTestsInvariant specified. Cannot check if common sources of entropy are ignored.")
+            } else {
+                assert(true == false, "Not Implemented.")
+            }
+        }
+
         // Determine recommended timeout value (rounded up to nearest multiple of 10ms)
         let maxExecutionTimeMs = (Int(maxExecutionTime * 1000 + 9) / 10) * 10
         let recommendedTimeout = 10 * maxExecutionTimeMs
@@ -827,6 +977,8 @@ public class Fuzzer {
                 numberOfProgramsThatExecutedSuccessfullyDuringImport += 1
             case .timedOut:
                 numberOfProgramsThatTimedOutDuringImport += 1
+            case .differential:
+                break // nop
             }
         }
 

@@ -2889,4 +2889,41 @@ class LifterTests: XCTestCase {
         """
         XCTAssertEqual(actual, expected)
     }
+
+    func testDifferentialHashLifting() {
+        let fuzzer = makeMockFuzzer()
+        let b = fuzzer.makeBuilder()
+
+        let f = b.buildPlainFunction(with: .parameters(n: 1)) { args in
+            b.calculateDifferentialHash(ofVariable: args[0])
+            b.doReturn(args[0])
+        }
+        b.callFunction(f, withArgs: [b.loadFloat(13.37)])
+        let f2 = b.buildArrowFunction(with: .parameters(n: 0)) { args in
+            b.doReturn(b.loadString("foobar"))
+        }
+        b.calculateDifferentialHash(ofVariable: f2)
+        b.reassign(f, to: f2)
+        b.callFunction(f)
+
+        let program = b.finalize()
+        let actual = fuzzer.lifter.lift(program)
+
+        let expected = """
+        function f0(a1) {
+            fuzzilli_hash(a1)
+            return a1;
+        }
+        f0(13.37);
+        const v4 = () => {
+            return "foobar";
+        };
+        fuzzilli_hash(v4)
+        f0 = v4;
+        f0();
+
+        """
+
+        XCTAssertEqual(actual, expected)
+    }
 }

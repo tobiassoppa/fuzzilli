@@ -174,6 +174,30 @@ public struct Fuzzilli_Protobuf_Statistics: @unchecked Sendable {
     set {_uniqueStorage()._timeoutRate = newValue}
   }
 
+  //// The number of flaky differentials found.
+  public var flakyDifferentialSamples: UInt64 {
+    get {return _storage._flakyDifferentialSamples}
+    set {_uniqueStorage()._flakyDifferentialSamples = newValue}
+  }
+
+  //// The number of deterministic differentials found.
+  public var deterministicDifferentialSamples: UInt64 {
+    get {return _storage._deterministicDifferentialSamples}
+    set {_uniqueStorage()._deterministicDifferentialSamples = newValue}
+  }
+
+  //// The total number of differential tests performed.
+  public var totalDifferentialTests: UInt64 {
+    get {return _storage._totalDifferentialTests}
+    set {_uniqueStorage()._totalDifferentialTests = newValue}
+  }
+
+  //// The number of executions of code that actually contains the DifferentialHash operation.
+  public var execsContainingDifferentialOp: UInt64 {
+    get {return _storage._execsContainingDifferentialOp}
+    set {_uniqueStorage()._execsContainingDifferentialOp = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -293,6 +317,10 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     15: .same(proto: "coverage"),
     16: .same(proto: "correctnessRate"),
     17: .same(proto: "timeoutRate"),
+    18: .same(proto: "flakyDifferentialSamples"),
+    19: .same(proto: "deterministicDifferentialSamples"),
+    20: .same(proto: "totalDifferentialTests"),
+    21: .same(proto: "execsContainingDifferentialOp"),
   ]
 
   fileprivate class _StorageClass {
@@ -313,6 +341,10 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     var _coverage: Double = 0
     var _correctnessRate: Double = 0
     var _timeoutRate: Double = 0
+    var _flakyDifferentialSamples: UInt64 = 0
+    var _deterministicDifferentialSamples: UInt64 = 0
+    var _totalDifferentialTests: UInt64 = 0
+    var _execsContainingDifferentialOp: UInt64 = 0
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -344,6 +376,10 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       _coverage = source._coverage
       _correctnessRate = source._correctnessRate
       _timeoutRate = source._timeoutRate
+      _flakyDifferentialSamples = source._flakyDifferentialSamples
+      _deterministicDifferentialSamples = source._deterministicDifferentialSamples
+      _totalDifferentialTests = source._totalDifferentialTests
+      _execsContainingDifferentialOp = source._execsContainingDifferentialOp
     }
   }
 
@@ -379,6 +415,10 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         case 15: try { try decoder.decodeSingularDoubleField(value: &_storage._coverage) }()
         case 16: try { try decoder.decodeSingularDoubleField(value: &_storage._correctnessRate) }()
         case 17: try { try decoder.decodeSingularDoubleField(value: &_storage._timeoutRate) }()
+        case 18: try { try decoder.decodeSingularUInt64Field(value: &_storage._flakyDifferentialSamples) }()
+        case 19: try { try decoder.decodeSingularUInt64Field(value: &_storage._deterministicDifferentialSamples) }()
+        case 20: try { try decoder.decodeSingularUInt64Field(value: &_storage._totalDifferentialTests) }()
+        case 21: try { try decoder.decodeSingularUInt64Field(value: &_storage._execsContainingDifferentialOp) }()
         default: break
         }
       }
@@ -438,6 +478,18 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       if _storage._timeoutRate.bitPattern != 0 {
         try visitor.visitSingularDoubleField(value: _storage._timeoutRate, fieldNumber: 17)
       }
+      if _storage._flakyDifferentialSamples != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._flakyDifferentialSamples, fieldNumber: 18)
+      }
+      if _storage._deterministicDifferentialSamples != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._deterministicDifferentialSamples, fieldNumber: 19)
+      }
+      if _storage._totalDifferentialTests != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._totalDifferentialTests, fieldNumber: 20)
+      }
+      if _storage._execsContainingDifferentialOp != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._execsContainingDifferentialOp, fieldNumber: 21)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -464,6 +516,10 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         if _storage._coverage != rhs_storage._coverage {return false}
         if _storage._correctnessRate != rhs_storage._correctnessRate {return false}
         if _storage._timeoutRate != rhs_storage._timeoutRate {return false}
+        if _storage._flakyDifferentialSamples != rhs_storage._flakyDifferentialSamples {return false}
+        if _storage._deterministicDifferentialSamples != rhs_storage._deterministicDifferentialSamples {return false}
+        if _storage._totalDifferentialTests != rhs_storage._totalDifferentialTests {return false}
+        if _storage._execsContainingDifferentialOp != rhs_storage._execsContainingDifferentialOp {return false}
         return true
       }
       if !storagesAreEqual {return false}

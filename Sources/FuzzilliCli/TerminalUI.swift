@@ -59,6 +59,13 @@ class TerminalUI {
             }
         }
 
+        fuzzer.registerEventListener(for: fuzzer.events.DifferentialFound) { differential in
+            if differential.isUnique {
+                print("########## Unique Differential Found ##########")
+                print(fuzzer.lifter.lift(differential.program, withOptions: .includeComments))
+            }
+        }
+
         fuzzer.registerEventListener(for: fuzzer.events.ProgramGenerated) { program in
             if self.printNextGeneratedProgram {
                 print("--------- Randomly Sampled Generated Program -----------")
@@ -147,6 +154,12 @@ class TerminalUI {
         Fuzzer Overhead:              \(String(format: "%.2f", stats.fuzzerOverhead * 100))%
         Minimization Overhead:        \(String(format: "%.2f", stats.minimizationOverhead * 100))%
         Total Execs:                  \(stats.totalExecs)
+
+        == EXPERIMENTAL ==
+        Total Execs of Interpreter:              \(stats.totalDifferentialTests)
+        Total programs calling fuzzilli_hash():  \(stats.execsContainingDifferentialOp)
+        Flaky Differentials Found:               \(stats.flakyDifferentialSamples)
+        Deterministic Differentials Found:       \(stats.deterministicDifferentialSamples)
         """)
     }
 

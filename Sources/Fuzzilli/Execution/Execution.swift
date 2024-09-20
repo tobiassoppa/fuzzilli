@@ -20,6 +20,7 @@ public enum ExecutionOutcome: CustomStringConvertible, Equatable, Hashable {
     case failed(Int)
     case succeeded
     case timedOut
+    case differential
 
     public var description: String {
         switch self {
@@ -31,11 +32,15 @@ public enum ExecutionOutcome: CustomStringConvertible, Equatable, Hashable {
             return "Succeeded"
         case .timedOut:
             return "TimedOut"
+        case .differential:
+            return "Differential"
         }
     }
 
     public func isCrash() -> Bool {
         if case .crashed = self {
+            return true
+        } else if case .differential = self {
             return true
         } else {
             return false
@@ -45,9 +50,17 @@ public enum ExecutionOutcome: CustomStringConvertible, Equatable, Hashable {
 
 /// The result of executing a program.
 public protocol Execution {
-    var outcome: ExecutionOutcome { get }
+    // TODO(tobias@soppa.me): Adding a setter to `outcome` and `execTime` changes the interface everywhere in Fuzzilli.
+    // Is that ok, or does it make more sense to create another struct that implements Execution, which can then be
+    // created on-demand, while keeping the interface in here unchanged?
+
+    var outcome: ExecutionOutcome { get set }
     var stdout: String { get }
     var stderr: String { get }
     var fuzzout: String { get }
-    var execTime: TimeInterval { get }
+    var execTime: TimeInterval { get set }
+    /// A serialized version of (some of) the programs variables after
+    /// execution is finished. Might be empty if the result was not requested
+    /// or could not be computed.
+    var differentialResult: Int { get }
 }

@@ -114,6 +114,9 @@ public class RuntimeAssistedMutator: Mutator {
         case .succeeded:
             // The expected case.
             break
+        case .differential:
+            let stdout = execution.fuzzout + "\n" + execution.stdout
+            fuzzer.processDifferential(program, withStderr: execution.stderr, withStdout: stdout, origin: .local, withExectime: execution.execTime)
         }
 
         // Process the output to build the mutated program.

@@ -87,6 +87,10 @@ public class Statistics: Module {
             data.validSamples += node.validSamples
             data.timedOutSamples += node.timedOutSamples
             data.totalExecs += node.totalExecs
+            data.flakyDifferentialSamples += node.flakyDifferentialSamples
+            data.deterministicDifferentialSamples += node.deterministicDifferentialSamples
+            data.totalDifferentialTests += node.totalDifferentialTests
+            data.execsContainingDifferentialOp += node.execsContainingDifferentialOp
 
             if !inactiveNodes.contains(id) {
                 // Add fields that only have meaning for active nodes
@@ -128,6 +132,15 @@ public class Statistics: Module {
         fuzzer.registerEventListener(for: fuzzer.events.CrashFound) { _ in
             self.ownData.crashingSamples += 1
         }
+        fuzzer.registerEventListener(for: fuzzer.events.DifferentialFound) { data in
+            if data.behaviour == .flaky {
+                self.ownData.flakyDifferentialSamples += 1
+            } else if data.behaviour == .deterministic {
+                self.ownData.deterministicDifferentialSamples += 1
+            } else {
+                assert(true == false, "Impossible case.")
+            }
+        }
         fuzzer.registerEventListener(for: fuzzer.events.TimeOutFound) { _ in
             self.ownData.timedOutSamples += 1
             self.correctnessRate.add(0.0)
@@ -150,6 +163,11 @@ public class Statistics: Module {
                 self.minimizationOverheadAvg.add(1)
             } else {
                 self.minimizationOverheadAvg.add(0)
+            }
+
+            // PreExecute event is sent only once, thus this number is accurate even though it will be executed twice.
+            if program.code.contains(where: { $0.op is DifferentialHash }) {
+                self.ownData.execsContainingDifferentialOp += 1
             }
         }
         fuzzer.registerEventListener(for: fuzzer.events.PostExecute) { exec in

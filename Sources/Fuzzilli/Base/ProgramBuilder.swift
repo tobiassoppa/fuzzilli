@@ -2562,6 +2562,10 @@ public class ProgramBuilder {
         emit(Print(), withInputs: [value])
     }
 
+    public func calculateDifferentialHash(ofVariable value: Variable) {
+        // The V8 implementation actually returns undefined, but treat it as nothing would be returned.
+        emit(DifferentialHash(), withInputs: [value])
+    }
 
     /// Returns the next free variable.
     func nextVariable() -> Variable {

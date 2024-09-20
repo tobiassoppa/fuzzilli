@@ -15,6 +15,12 @@
 import Fuzzilli
 
 struct Profile {
+    var hasEmptyDifferentialTestingConfig: Bool {
+        return differentialTests.isEmpty
+            && differentialTestsInvariant.isEmpty
+            && differentialCrashingFalsePositives.isEmpty
+    }
+
     let processArgs: (_ randomize: Bool) -> [String]
     let processEnv: [String : String]
     let maxExecsBeforeRespawn: Int
@@ -26,6 +32,11 @@ struct Profile {
 
     // JavaScript code snippets that are executed at startup time to ensure that Fuzzilli and the target engine are configured correctly.
     let startupTests: [(String, ExpectedStartupTestResult)]
+
+    let differentialTests: [String] = []
+    let differentialTestsInvariant: [String] = []
+    // This is important if the flag "--correctness-fuzzer-suppressions" is set in a fuzzing profile.
+    var differentialCrashingFalsePositives: [String] = []
 
     let additionalCodeGenerators: [(CodeGenerator, Int)]
     let additionalProgramTemplates: WeightedList<ProgramTemplate>
@@ -50,6 +61,7 @@ let profiles = [
     "jerryscript": jerryscriptProfile,
     "xs": xsProfile,
     "v8holefuzzing": v8HoleFuzzingProfile,
+    "v8maglev": v8MaglevDifferentialFuzzingProfile,
     "serenity": serenityProfile,
     "njs": njsProfile,
 ]

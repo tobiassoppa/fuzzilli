@@ -53,8 +53,9 @@ void reprl_destroy_context(struct reprl_context* ctx);
 /// @param timeout The maximum allowed execution time in microseconds
 /// @param execution_time A pointer to which, if execution succeeds, the execution time in microseconds is written to
 /// @param fresh_instance if true, forces the creation of a new instance of the target
+/// @param exec_hash execution hash of probed variables, used for differential testing
 /// @return A REPRL exit status (see below) or a negative number in case of an error
-int reprl_execute(struct reprl_context* ctx, const char* script, uint64_t script_size, uint64_t timeout, uint64_t* execution_time, int fresh_instance);
+int reprl_execute(struct reprl_context* ctx, const char* script, uint64_t script_size, uint64_t timeout, uint64_t* execution_time, int fresh_instance, uint32_t* exec_hash);
 
 /// Returns true if the execution terminated due to a signal.
 ///

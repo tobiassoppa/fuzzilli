@@ -28,6 +28,8 @@ public class Contributor: Hashable {
     private var timedOutSamples = 0
     // Number of crashing programs produced.
     private var crashingSamples = 0
+    // Number of differential programs produced.
+    private var differentialSamples = 0
 
     // Number of times this instance failed to generate/mutate code.
     private var failures = 0
@@ -58,6 +60,9 @@ public class Contributor: Hashable {
         crashingSamples += 1
     }
 
+    func generatedDifferentialSample() {
+        differentialSamples += 1
+    }
 
     func addedInstructions(_ n: Int) {
         guard n > 0 else { return }
@@ -130,6 +135,10 @@ extension Contributors {
 
     public func generatedCrashingSample() {
         forEach { $0.generatedCrashingSample() }
+    }
+
+    public func generatedDifferentialSample() {
+        forEach { $0.generatedDifferentialSample() }
     }
 
     public func generatedTimeOutSample() {

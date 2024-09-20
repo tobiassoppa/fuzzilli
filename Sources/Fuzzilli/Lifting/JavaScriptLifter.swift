@@ -1276,6 +1276,10 @@ public class JavaScriptLifter: Lifter {
             case .print:
                 let VALUE = input(0)
                 w.emit("fuzzilli('FUZZILLI_PRINT', \(VALUE));")
+
+            case .differentialHash:
+                let VALUE = input(0)
+                w.emit("fuzzilli_hash(\(VALUE))")
             }
 
             // Handling of guarded operations, part 2: emit the guarded operation and surround it with a try-catch.

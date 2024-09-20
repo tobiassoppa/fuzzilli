@@ -97,6 +97,7 @@ Options:
     --additionalArguments=args   : Pass additional arguments to the JS engine. If multiple arguments are passed, they should be separated by a comma.
     --tag=tag                    : Optional string tag associated with this instance which will be stored in the settings.json file as well as in crashing samples.
                                    This can for example be used to remember the target revision that is being fuzzed.
+    --differentialFuzzing        : Enable differential fuzzing.
 """)
     exit(0)
 }
@@ -152,6 +153,7 @@ let swarmTesting = args.has("--swarmTesting")
 let argumentRandomization = args.has("--argumentRandomization")
 let additionalArguments = args["--additionalArguments"] ?? ""
 let tag = args["--tag"]
+let differentialFuzzing = args.has("--differentialFuzzing")
 
 guard numJobs >= 1 else {
     configError("Must have at least 1 job")
@@ -370,6 +372,22 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
     // A script runner to execute JavaScript code in an instrumented JS engine.
     let runner = REPRL(executable: jsShellPath, processArguments: jsShellArguments, processEnvironment: profile.processEnv, maxExecsBeforeRespawn: profile.maxExecsBeforeRespawn)
 
+    // A reference script runner to execute JavaScript code. Only needed for differential testing.
+    var referenceRunner: ScriptRunner? = nil
+    if configuration.differentialFuzzing {
+        if profile.hasEmptyDifferentialTestingConfig {
+            logger.warning("Differential testing is enabled but not configured in chosen profile \(profileName!).")
+        }
+        referenceRunner = REPRL(executable: jsShellPath,
+                                // The referenceRunner will be run in interpreter mode. To guarantee similar results,
+                                // keep existing args but append jitless.
+                                processArguments: jsShellArguments + ["--jitless"],
+                                processEnvironment: profile.processEnv,
+                                maxExecsBeforeRespawn: profile.maxExecsBeforeRespawn)
+        // Currently coverage of reference runner (interpreted execution) is not evaluated and thus not attached to fuzzer.
+        let _ = ProgramCoverageEvaluator(runner: referenceRunner!)
+    }
+
     /// The mutation fuzzer responsible for mutating programs from the corpus and evaluating the outcome.
     let disabledMutators = Set(profile.disabledMutators)
     var mutators = WeightedList([
@@ -471,6 +489,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
     // Construct the fuzzer instance.
     return Fuzzer(configuration: configuration,
                   scriptRunner: runner,
+                  referenceRunner: referenceRunner,
                   engine: engine,
                   mutators: mutators,
                   codeGenerators: codeGenerators,
@@ -491,7 +510,11 @@ let mainConfig = Configuration(arguments: CommandLine.arguments,
                                enableDiagnostics: diagnostics,
                                enableInspection: inspect,
                                staticCorpus: staticCorpus,
-                               tag: tag)
+                               tag: tag,
+                               differentialFuzzing: differentialFuzzing,
+                               differentialTests: profile.differentialTests,
+                               differentialTestsInvariant: profile.differentialTestsInvariant,
+                               differentialCrashingFalsePositives: profile.differentialCrashingFalsePositives)
 
 let fuzzer = makeFuzzer(with: mainConfig)
 
@@ -624,7 +647,11 @@ let workerConfig = Configuration(arguments: CommandLine.arguments,
                                  enableDiagnostics: false,
                                  enableInspection: inspect,
                                  staticCorpus: staticCorpus,
-                                 tag: tag)
+                                 tag: tag,
+                                 differentialFuzzing: differentialFuzzing,
+                                 differentialTests: profile.differentialTests,
+                                 differentialTestsInvariant: profile.differentialTestsInvariant,
+                                 differentialCrashingFalsePositives: profile.differentialCrashingFalsePositives)
 
 for _ in 1..<numJobs {
     let worker = makeFuzzer(with: workerConfig)
