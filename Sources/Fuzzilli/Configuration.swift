@@ -61,6 +61,23 @@ public struct Configuration {
     /// also appended as a comment in the footer of crashing samples.
     public let tag: String?
 
+    /// Whether differential fuzzing is enabled or not.
+    public let differentialFuzzing: Bool
+
+    /// Code snippets that cause an observable difference of output
+    /// in the target engine. Used to verify that crashes can be detected.
+    public let differentialTests: [String]
+
+    /// Code snippets that must not cause an observable difference of output
+    /// in the target engine. Used to verify that common sources of
+    /// entrpy (Math.random, ...) are deterministic.
+    public let differentialTestsInvariant: [String]
+
+    // List of Strings searched for in stderr of the engine.
+    // If found, differential execution results are ignored. Useful to supress
+    // known benign differentials.
+    public let differentialCrashingFalsePositives: [String]
+
     public init(arguments: [String] = [],
                 timeout: UInt32 = 250,
                 skipStartupTests: Bool = false,
@@ -72,7 +89,11 @@ public struct Configuration {
                 enableDiagnostics: Bool = false,
                 enableInspection: Bool = false,
                 staticCorpus: Bool = false,
-                tag: String? = nil) {
+                tag: String? = nil,
+                differentialFuzzing: Bool = false,
+                differentialTests: [String] = [],
+                differentialTestsInvariant: [String] = [],
+                differentialCrashingFalsePositives: [String] = []) {
         self.arguments = arguments
         self.timeout = timeout
         self.logLevel = logLevel
@@ -83,6 +104,10 @@ public struct Configuration {
         self.enableInspection = enableInspection
         self.staticCorpus = staticCorpus
         self.tag = tag
+        self.differentialFuzzing = differentialFuzzing
+        self.differentialTests = differentialTests
+        self.differentialTestsInvariant = differentialTestsInvariant
+        self.differentialCrashingFalsePositives = differentialCrashingFalsePositives
     }
 }
 

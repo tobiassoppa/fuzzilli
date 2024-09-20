@@ -74,8 +74,10 @@ public class MutationEngine: FuzzEngine {
             assert(program !== parent)
             let outcome = execute(program)
 
-            // Mutate the program further if it succeeded.
+            // Mutate the program further if it succeeded or differential found.
             if .succeeded == outcome {
+                parent = program
+            } else if .differential == outcome {
                 parent = program
             }
         }

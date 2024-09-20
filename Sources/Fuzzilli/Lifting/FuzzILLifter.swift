@@ -748,6 +748,9 @@ public class FuzzILLifter: Lifter {
 
         case .print:
             w.emit("Print \(input(0))")
+
+        case .differentialHash:
+            w.emit("DifferentialHash \(input(0))")
         }
     }
 

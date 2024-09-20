@@ -1472,6 +1472,14 @@ public struct Fuzzilli_Protobuf_Instruction: Sendable {
     set {operation = .fixup(newValue)}
   }
 
+  public var differentialHash: Fuzzilli_Protobuf_DifferentialHash {
+    get {
+      if case .differentialHash(let v)? = operation {return v}
+      return Fuzzilli_Protobuf_DifferentialHash()
+    }
+    set {operation = .differentialHash(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Operation: Equatable, Sendable {
@@ -1653,6 +1661,7 @@ public struct Fuzzilli_Protobuf_Instruction: Sendable {
     case explore(Fuzzilli_Protobuf_Explore)
     case probe(Fuzzilli_Protobuf_Probe)
     case fixup(Fuzzilli_Protobuf_Fixup)
+    case differentialHash(Fuzzilli_Protobuf_DifferentialHash)
 
   }
 
@@ -1881,6 +1890,7 @@ extension Fuzzilli_Protobuf_Instruction: SwiftProtobuf.Message, SwiftProtobuf._M
     177: .same(proto: "explore"),
     178: .same(proto: "probe"),
     179: .same(proto: "fixup"),
+    180: .same(proto: "differentialHash"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4199,6 +4209,19 @@ extension Fuzzilli_Protobuf_Instruction: SwiftProtobuf.Message, SwiftProtobuf._M
           self.operation = .fixup(v)
         }
       }()
+      case 180: try {
+        var v: Fuzzilli_Protobuf_DifferentialHash?
+        var hadOneofValue = false
+        if let current = self.operation {
+          hadOneofValue = true
+          if case .differentialHash(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.operation = .differentialHash(v)
+        }
+      }()
       default: break
       }
     }
@@ -4924,6 +4947,10 @@ extension Fuzzilli_Protobuf_Instruction: SwiftProtobuf.Message, SwiftProtobuf._M
     case .fixup?: try {
       guard case .fixup(let v)? = self.operation else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 179)
+    }()
+    case .differentialHash?: try {
+      guard case .differentialHash(let v)? = self.operation else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 180)
     }()
     case nil: break
     }

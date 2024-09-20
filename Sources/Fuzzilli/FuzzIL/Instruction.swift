@@ -836,6 +836,8 @@ extension Instruction: ProtobufConvertible {
                 $0.loadNewTarget = Fuzzilli_Protobuf_LoadNewTarget()
             case .print(_):
                 fatalError("Print operations should not be serialized")
+            case .differentialHash:
+                $0.differentialHash = Fuzzilli_Protobuf_DifferentialHash()
             }
         }
 
@@ -1254,6 +1256,8 @@ extension Instruction: ProtobufConvertible {
             op = Nop()
         case .print:
             fatalError("unreachable")
+        case .differentialHash:
+            op = DifferentialHash()
         }
 
         guard op.numInputs + op.numOutputs + op.numInnerOutputs == inouts.count else {

@@ -55,6 +55,9 @@ public class Events {
     /// Signals that a crashing program has been found. Dispatched after the crashing program has been minimized.
     public let CrashFound = Event<(program: Program, behaviour: CrashBehaviour, isUnique: Bool, origin: ProgramOrigin)>()
 
+    /// Signals that a program with two different differential hash values has been found. Dispatched after the differential program has been minimized.
+    public let DifferentialFound = Event<(program: Program, behaviour: CrashBehaviour, isUnique: Bool, origin: ProgramOrigin)>()
+
     /// Signals that a program causing a timeout has been found.
     public let TimeOutFound = Event<Program>()
 
@@ -69,6 +72,9 @@ public class Events {
 
     /// Signals that a program was executed.
     public let PostExecute = Event<Execution>()
+
+    /// Signals that a differential test was performed.
+    public let PostDifferentialExecute = Event<Execution>()
 
     /// In distributed fuzzing, signals that this child node has synchronized with its parent node.
     /// This event is guaranteed to be dispatched at most once, but may not be dispatched at

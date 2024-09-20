@@ -2242,6 +2242,15 @@ final class LoadNewTarget: JsOperation {
     }
 }
 
+// Calls a custom JavaScript builtin `fuzzilli_hash(variable)`.
+final class DifferentialHash : JsOperation {
+    override var opcode: Opcode { .differentialHash(self) }
+
+    init() {
+        super.init(numInputs: 1)
+    }
+}
+
 /// Internal operations.
 ///
 /// These can be used for internal fuzzer operations but will not appear in the corpus.

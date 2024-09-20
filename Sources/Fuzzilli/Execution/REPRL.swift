@@ -108,8 +108,9 @@ public class REPRL: ComponentBase, ScriptRunner {
         var execTime: UInt64 = 0        // In microseconds
         let timeout = UInt64(timeout) * 1000        // In microseconds
         var status: Int32 = 0
+        var differentialResult32: UInt32 = 0
         script.withCString { ptr in
-            status = reprl_execute(reprlContext, ptr, UInt64(script.utf8.count), UInt64(timeout), &execTime, freshInstance)
+            status = reprl_execute(reprlContext, ptr, UInt64(script.utf8.count), UInt64(timeout), &execTime, freshInstance, &differentialResult32)
             // If we fail, we retry after a short timeout and with a fresh instance. If we still fail, we give up trying
             // to execute this program. If we repeatedly fail to execute any program, we abort.
             if status < 0 {
@@ -118,7 +119,7 @@ public class REPRL: ComponentBase, ScriptRunner {
                     fuzzer.dispatchEvent(fuzzer.events.DiagnosticsEvent, data: (name: "REPRLFail", content: scriptBuffer))
                 }
                 Thread.sleep(forTimeInterval: 1)
-                status = reprl_execute(reprlContext, ptr, UInt64(script.utf8.count), UInt64(timeout), &execTime, 1)
+                status = reprl_execute(reprlContext, ptr, UInt64(script.utf8.count), UInt64(timeout), &execTime, 1, &differentialResult32)
             }
         }
 
@@ -149,6 +150,7 @@ public class REPRL: ComponentBase, ScriptRunner {
             fatalError("Unknown REPRL exit status \(status)")
         }
         execution.execTime = Double(execTime) / 1_000_000
+        execution.differentialResult = Int(differentialResult32)
 
         return execution
     }
@@ -164,10 +166,12 @@ class REPRLExecution: Execution {
 
     var outcome = ExecutionOutcome.succeeded
     var execTime: TimeInterval = 0
+    var differentialResult: Int
 
     init(from reprl: REPRL) {
         self.reprl = reprl
         self.execId = reprl.lastExecId
+        self.differentialResult = 0
     }
 
     // The output streams (stdout, stderr, fuzzout) can only be accessed before
