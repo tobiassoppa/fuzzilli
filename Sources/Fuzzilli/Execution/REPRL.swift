@@ -181,26 +181,42 @@ class REPRLExecution: Execution {
     }
 
     var stdout: String {
-        assert(outputStreamsAreValid)
-        if cachedStdout == nil {
-            cachedStdout = String(cString: reprl_fetch_stdout(reprl.reprlContext))
+        get {
+            assert(outputStreamsAreValid)
+            if cachedStdout == nil {
+                cachedStdout = String(cString: reprl_fetch_stdout(reprl.reprlContext))
+            }
+            return cachedStdout!
         }
-        return cachedStdout!
+        set(newStdout) {
+            cachedStdout = newStdout
+        }
+        
     }
 
     var stderr: String {
-        assert(outputStreamsAreValid)
-        if cachedStderr == nil {
-            cachedStderr = String(cString: reprl_fetch_stderr(reprl.reprlContext))
+        get {
+            assert(outputStreamsAreValid)
+            if cachedStderr == nil {
+                cachedStderr = String(cString: reprl_fetch_stderr(reprl.reprlContext))
+            }
+            return cachedStderr!
         }
-        return cachedStderr!
+        set(newStderr) {
+            cachedStderr = newStderr
+        }
     }
 
     var fuzzout: String {
-        assert(outputStreamsAreValid)
-        if cachedFuzzout == nil {
-            cachedFuzzout = String(cString: reprl_fetch_fuzzout(reprl.reprlContext))
+        get {
+            assert(outputStreamsAreValid)
+            if cachedFuzzout == nil {
+                cachedFuzzout = String(cString: reprl_fetch_fuzzout(reprl.reprlContext))
+            }
+            return cachedFuzzout!
         }
-        return cachedFuzzout!
+        set(newFuzzout) {
+            cachedFuzzout = newFuzzout
+        }
     }
 }

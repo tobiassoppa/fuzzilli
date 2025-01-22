@@ -378,10 +378,17 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         if profile.hasEmptyDifferentialTestingConfig {
             logger.warning("Differential testing is enabled but not configured in chosen profile \(profileName!).")
         }
+        // We want to use exactly the same flags for the interpreter as for the JIT (because randomization could be turned on).
+        // To avoid --jitless getting reset, we need to avoid passing conflicting flags by filtering out all maglev related flags
+        // and then appending --jitless and --maglev-stats-nvp (again). The latter is not considered conflicting and will only print
+        // machine readable statistics if maglev is enabled. So it can be used as a mechanism to assert later on that maglev is
+        // indeed not running.
+        let referenceArgs = jsShellArguments.filter({ !($0.contains("maglev")) }) + ["--jitless", "--maglev-stats-nvp"]
         referenceRunner = REPRL(executable: jsShellPath,
+                                // TODO(tobias@soppa.me): Notes from the
                                 // The referenceRunner will be run in interpreter mode. To guarantee similar results,
                                 // keep existing args but append jitless.
-                                processArguments: jsShellArguments + ["--jitless"],
+                                processArguments: referenceArgs,
                                 processEnvironment: profile.processEnv,
                                 maxExecsBeforeRespawn: profile.maxExecsBeforeRespawn)
         // Currently coverage of reference runner (interpreted execution) is not evaluated and thus not attached to fuzzer.
@@ -441,6 +448,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
 
     // Add a post-processor if the profile defines one.
     if let postProcessor = profile.optionalPostProcessor {
+        logger.verbose("Register PostProcessor with engine.")
         engine.registerPostProcessor(postProcessor)
     }
 
@@ -631,7 +639,10 @@ fuzzer.sync {
 
     // Initialize the fuzzer, and run startup tests
     fuzzer.initialize()
+    let original_timeout = fuzzer.config.timeout
+    fuzzer.config.timeout = 25000
     fuzzer.runStartupTests()
+    fuzzer.config.timeout = original_timeout
 
     // Start the main fuzzing job.
     fuzzer.start(runUntil: exitCondition)

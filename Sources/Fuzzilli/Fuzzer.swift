@@ -25,7 +25,7 @@ public class Fuzzer {
     public private(set) var isStopped = false
 
     /// The configuration used by this fuzzer.
-    public let config: Configuration
+    public var config: Configuration // TODO(tobias@soppa.me): Hack to deal with timeout problems during startup tests.
 
     /// The list of events that can be dispatched on this fuzzer instance.
     public let events: Events
@@ -73,6 +73,7 @@ public class Fuzzer {
 
     /// The engine used for initial corpus generation (if performed).
     public let corpusGenerationEngine = GenerativeEngine()
+    // TODO(diff): Pass the profile/postProcessor as argument so it can be passed to generative engine?
 
     /// The possible states of a fuzzer.
     public enum State {
@@ -505,6 +506,90 @@ public class Fuzzer {
         }
     }
 
+    private func triggeredMaglev(_ execution: Execution) -> Bool {
+        // execution.stdout.contains("Maglev");
+
+        // Output looks something like this
+        // "Maglev_V8.MaglevPrepareJob_time"=0.000
+        // "Maglev_V8.MaglevPrepareJob_space"=0
+        // "Maglev_V8.MaglevExecuteJob_time"=1.998
+        // "Maglev_V8.MaglevExecuteJob_space"=106320
+        // "Maglev_V8.MaglevFinalizeJob_time"=0.015
+        // "Maglev_V8.MaglevFinalizeJob_space"=384
+        // "Maglev_totals_time"=2.121
+        // "Maglev_totals_space"=106704
+        // "Maglev_totals_count"=2
+
+        // Find the line containing "Maglev_totals_count"
+        guard let totalsCount = execution.stdout.split(separator: "\n")
+            .first(where: { $0.contains("Maglev_totals_count") })
+        else {
+            return false
+        }
+        
+        // Split the line at "=" and get the value part
+        let parts = totalsCount.split(separator: "=")
+        guard parts.count == 2, let valueString = parts.last else {
+            return false
+        }
+        
+        // Try to parse the value as an integer
+        guard let value = Int(valueString.trimmingCharacters(in: .whitespaces)) else {
+            return false
+        }
+        
+        // Return true if the value is greater than or equal to 1. Sometimes the
+        // value is 0, we do not count those.
+        return value >= 1
+    }
+
+    private func triggeredTurbofan(_ execution: Execution) -> Bool {
+        // execution.stdout.contains("Turbofan");
+
+        // Output looks something like this
+        // "Turbofan_V8.TFInitializing_time"=0.042
+        // "Turbofan_V8.TFInitializing_space"=3696
+        // "Turbofan_V8.TFBrokerInitAndSerialization_time"=0.041
+        // "Turbofan_V8.TFBrokerInitAndSerialization_space"=52432
+        // "Turbofan_V8.TFGraphCreation_time"=2.428
+        // "Turbofan_V8.TFGraphCreation_space"=73792
+        // "Turbofan_V8.TFLowering_time"=1.669
+        // "Turbofan_V8.TFLowering_space"=80128
+        // "Turbofan_V8.TFBlockBuilding_time"=3.759
+        // "Turbofan_V8.TFBlockBuilding_space"=195352
+        // "Turbofan_V8.TFRegisterAllocation_time"=1.387
+        // "Turbofan_V8.TFRegisterAllocation_space"=37680
+        // "Turbofan_V8.TFCodeGeneration_time"=0.125
+        // "Turbofan_V8.TFCodeGeneration_space"=13568
+        // "Turbofan_V8.TFFinalizeCode_time"=0.037
+        // "Turbofan_V8.TFFinalizeCode_space"=0
+        // "Turbofan_totals_time"=7.967
+        // "Turbofan_totals_space"=379272
+        // "Turbofan_totals_count"=1
+
+        // Find the line containing "Turbofan_totals_count"
+        guard let totalsCount = execution.stdout.split(separator: "\n")
+            .first(where: { $0.contains("Turbofan_totals_count") })
+        else {
+            return false
+        }
+        
+        // Split the line at "=" and get the value part
+        let parts = totalsCount.split(separator: "=")
+        guard parts.count == 2, let valueString = parts.last else {
+            return false
+        }
+        
+        // Try to parse the value as an integer
+        guard let value = Int(valueString.trimmingCharacters(in: .whitespaces)) else {
+            return false
+        }
+        
+        // Return true if the value is greater than or equal to 1. Sometimes the
+        // value is 0, we do not count those.
+        return value >= 1
+    }
+
     private func executeReferenceRunner(_ script: String, willMutate previousExecution: inout Execution, withTimeout timeout: UInt32? = nil, purpose: ExecutionPurpose) {
         assert(referenceRunner!.isInitialized)
 
@@ -514,9 +599,10 @@ public class Fuzzer {
         // TODO(tobias@soppa.me): How to handle the execTime? Track individually, sum up, ...?
         // previousExecution.execTime += referenceExecution.execTime
 
+        // TODO(tobias@soppa.me): Comment out and move to bottom.
         // Dont dispatch PostExecute, instead handle all in PostDifferentialExecute so we can track more fine grained what happens.
-        dispatchEvent(events.PostExecute, data: referenceExecution) // For NOW its ok, but remove!
-        dispatchEvent(events.PostDifferentialExecute, data: referenceExecution)
+        // dispatchEvent(events.PostExecute, data: referenceExecution) // For NOW its ok, but remove!
+        // dispatchEvent(events.PostDifferentialExecute, data: referenceExecution)
 
         // It only makes sense to compare the differential hashes if both are succeeded.
         if previousExecution.outcome == .succeeded && referenceExecution.outcome == .succeeded {
@@ -525,6 +611,18 @@ public class Fuzzer {
                 previousExecution.outcome = .differential
             }
         }
+
+        // let stdoutCombined = "\nMAGLEV: \(previousExecution.stdout)\nINTERPRETER: \(referenceExecution.stdout)"
+        // let stderrCombined = "\nMAGLEV: \(previousExecution.stderr)\nINTERPRETER: \(referenceExecution.stderr)"
+        // let fuzzoutCombined = "\nMAGLEV: \(previousExecution.fuzzout)\nINTERPRETER: \(referenceExecution.fuzzout)"
+        // previousExecution.stdout = stdoutCombined
+        // previousExecution.stderr = stderrCombined
+        // previousExecution.fuzzout = fuzzoutCombined
+
+        // TODO(tobias@soppa.me): temporarily moved here to check if it makes sense to first mutate and then dispatch (it should?).
+        // TODO(tobias@soppa.me): Keep dispatching INTERPRETER, correct? Because we are also interested in it?
+        dispatchEvent(events.PostExecute, data: referenceExecution) // For NOW its ok, but remove!
+        dispatchEvent(events.PostDifferentialExecute, data: referenceExecution)
     }
 
     /// Executes a program.
@@ -544,13 +642,29 @@ public class Fuzzer {
 
         dispatchEvent(events.PreExecute, data: (program, purpose))
         var execution = runner.run(script, withTimeout: timeout ?? config.timeout)
-        if hasDifferentialFuzzingEnabled {
-            // Only mutate execution after ensuring differential fuzzing is enabled. But do so before sending PostExecute.
-            treatCrashAsFailure(willMutate: &execution, withCode: 0)
-        }
+        // TODO(tobias@soppa.me): For experiment 1 and 2, always do this!
+        // if hasDifferentialFuzzingEnabled {
+        //     // Only mutate execution after ensuring differential fuzzing is enabled. But do so before sending PostExecute.
+        //     treatCrashAsFailure(willMutate: &execution, withCode: 0)
+        // }
+        treatCrashAsFailure(willMutate: &execution, withCode: 0)
         dispatchEvent(events.PostExecute, data: execution)
+        if triggeredMaglev(execution) {
+            dispatchEvent(events.MaglevTriggered, data: execution)
+        }
+        if triggeredTurbofan(execution) {
+            dispatchEvent(events.TurbofanTriggered, data: execution)
+        }
 
         if hasDifferentialFuzzingEnabled {
+            // if triggeredMaglev(execution) {
+            //     let maglevStats = execution.stdout
+            //         .split(separator: "\n")
+            //         .filter { $0.contains("Maglev_")}
+            //         .map { String($0) }
+            //     let containsDifferential = program.code.contains(where: { $0.op is DifferentialHash })
+            //     dispatchEvent(events.MaglevTriggered, data: (program: program, maglevStats: maglevStats, containsDifferentialOperation: containsDifferential))
+            // }
             executeReferenceRunner(script, willMutate: &execution, withTimeout: timeout ?? config.timeout, purpose: purpose)
         }
 
@@ -862,6 +976,12 @@ public class Fuzzer {
             b = makeBuilder()
             b.eval(test)
             execution = execute(b.finalize(), purpose: .startup)
+
+            // logger.info("TEST: \(test)")
+            // logger.info("STDERR: \(execution.stderr)\n")
+            // logger.info("STDOUT: \(execution.stdout)\n")
+            // logger.info("FUZZOUT: \(execution.fuzzout)\n")
+            // logger.info("EXEC OUTCOME: \(execution.outcome)")
 
             switch expectedResult {
             case .shouldSucceed where execution.outcome != .succeeded:

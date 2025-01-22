@@ -14,62 +14,62 @@
 
 import Fuzzilli
 
-fileprivate let ForceJITCompilationThroughLoopGenerator = CodeGenerator("ForceJITCompilationThroughLoopGenerator", inputs: .required(.function())) { b, f in
-    assert(b.type(of: f).Is(.function()))
-    let arguments = b.randomArguments(forCalling: f)
+// fileprivate let ForceJITCompilationThroughLoopGenerator = CodeGenerator("ForceJITCompilationThroughLoopGenerator", inputs: .required(.function())) { b, f in
+//     assert(b.type(of: f).Is(.function()))
+//     let arguments = b.randomArguments(forCalling: f)
 
-    // Default for Maglev is n=400, set to a lower value with --invocation-count-for-maglev=95
-    b.buildRepeatLoop(n: 100) { _ in
-        b.callFunction(f, withArgs: arguments)
-    }
-}
+//     // Default for Maglev is n=400, set to a lower value with --invocation-count-for-maglev=95
+//     b.buildRepeatLoop(n: 100) { _ in
+//         b.callFunction(f, withArgs: arguments)
+//     }
+// }
 
-fileprivate let ForceMaglevCompilationGenerator = CodeGenerator("ForceMaglevCompilationGenerator", inputs: .required(.function())) { b, f in
-    assert(b.type(of: f).Is(.function()))
-    let arguments = b.randomArguments(forCalling: f)
+// fileprivate let ForceMaglevCompilationGenerator = CodeGenerator("ForceMaglevCompilationGenerator", inputs: .required(.function())) { b, f in
+//     assert(b.type(of: f).Is(.function()))
+//     let arguments = b.randomArguments(forCalling: f)
 
-    b.callFunction(f, withArgs: arguments)
+//     b.callFunction(f, withArgs: arguments)
 
-    b.eval("%PrepareFunctionForOptimization(%@)", with: [f]);
+//     b.eval("%PrepareFunctionForOptimization(%@)", with: [f]);
 
-    b.callFunction(f, withArgs: arguments)
-    b.callFunction(f, withArgs: arguments)
+//     b.callFunction(f, withArgs: arguments)
+//     b.callFunction(f, withArgs: arguments)
 
-    b.eval("%OptimizeMaglevOnNextCall(%@)", with: [f]);
+//     b.eval("%OptimizeMaglevOnNextCall(%@)", with: [f]);
 
-    b.callFunction(f, withArgs: arguments)
-}
+//     b.callFunction(f, withArgs: arguments)
+// }
 
-fileprivate let WorkerGenerator = RecursiveCodeGenerator("WorkerGenerator") { b in
-    let workerSignature = Signature(withParameterCount: Int.random(in: 0...3))
+// fileprivate let WorkerGenerator = RecursiveCodeGenerator("WorkerGenerator") { b in
+//     let workerSignature = Signature(withParameterCount: Int.random(in: 0...3))
 
-    // TODO(cffsmith): currently Fuzzilli does not know that this code is sent
-    // to another worker as a string. This has the consequence that we might
-    // use variables inside the worker that are defined in a different scope
-    // and as such they are not accessible / undefined. To fix this we should
-    // define an Operation attribute that tells Fuzzilli to ignore variables
-    // defined in outer scopes.
-    let workerFunction = b.buildPlainFunction(with: .parameters(workerSignature.parameters)) { args in
-        let this = b.loadThis()
+//     // TODO(cffsmith): currently Fuzzilli does not know that this code is sent
+//     // to another worker as a string. This has the consequence that we might
+//     // use variables inside the worker that are defined in a different scope
+//     // and as such they are not accessible / undefined. To fix this we should
+//     // define an Operation attribute that tells Fuzzilli to ignore variables
+//     // defined in outer scopes.
+//     let workerFunction = b.buildPlainFunction(with: .parameters(workerSignature.parameters)) { args in
+//         let this = b.loadThis()
 
-        // Generate a random onmessage handler for incoming messages.
-        let onmessageFunction = b.buildPlainFunction(with: .parameters(n: 1)) { args in
-            b.buildRecursive(block: 1, of: 2)
-        }
-        b.setProperty("onmessage", of: this, to: onmessageFunction)
+//         // Generate a random onmessage handler for incoming messages.
+//         let onmessageFunction = b.buildPlainFunction(with: .parameters(n: 1)) { args in
+//             b.buildRecursive(block: 1, of: 2)
+//         }
+//         b.setProperty("onmessage", of: this, to: onmessageFunction)
 
-        b.buildRecursive(block: 2, of: 2)
-    }
-    let workerConstructor = b.loadBuiltin("Worker")
+//         b.buildRecursive(block: 2, of: 2)
+//     }
+//     let workerConstructor = b.loadBuiltin("Worker")
 
-    let functionString = b.loadString("function")
-    let argumentsArray = b.createArray(with: b.randomArguments(forCalling: workerFunction))
+//     let functionString = b.loadString("function")
+//     let argumentsArray = b.createArray(with: b.randomArguments(forCalling: workerFunction))
 
-    let configObject = b.createObject(with: ["type": functionString, "arguments": argumentsArray])
+//     let configObject = b.createObject(with: ["type": functionString, "arguments": argumentsArray])
 
-    let worker = b.construct(workerConstructor, withArgs: [workerFunction, configObject])
-    // Fuzzilli can now use the worker.
-}
+//     let worker = b.construct(workerConstructor, withArgs: [workerFunction, configObject])
+//     // Fuzzilli can now use the worker.
+// }
 
 // Insert random GC calls throughout our code.
 fileprivate let GcGenerator = CodeGenerator("GcGenerator") { b in
@@ -86,17 +86,72 @@ fileprivate let GcGenerator = CodeGenerator("GcGenerator") { b in
     b.callFunction(gc, withArgs: [b.createObject(with: ["type": type, "execution": execution])])
 }
 
-fileprivate let WasmStructGenerator = CodeGenerator("WasmStructGenerator") { b in
-    b.eval("%WasmStruct()", hasOutput: true);
-}
-
-fileprivate let WasmArrayGenerator = CodeGenerator("WasmArrayGenerator") { b in
-    b.eval("%WasmArray()", hasOutput: true);
-}
-
 // TODO(tobias@soppa.me): Prefer variables that are inside of functions, methods etc, not top level vars.
 fileprivate let DifferentialHashGenerator = CodeGenerator("DifferentialHashGenerator") { b in
         b.calculateDifferentialHash(ofVariable: b.randomVariable());
+}
+
+struct DifferentialHashPostProcessor: FuzzingPostProcessor {
+    func process(_ program: Program, for fuzzer: Fuzzer) -> Program {
+        // if program.code.containsDifferential() {
+        //     return program
+        // }
+
+        // let b = fuzzer.makeBuilder(forMutating: program)
+        // for instr in program.code {
+        //     b.append(instr)
+        // }
+        // if !b.hasVisibleVariables { return program } 
+        // b.calculateDifferentialHash(ofVariable: b.randomVariable())
+
+        // let program = b.finalize()
+        // return program
+
+        // Only one call to fuzzilli_hash() per program.
+        if program.code.containsDifferential() {
+            return program
+        }
+
+        // We cannot access the actual state of the active programBuilder.
+        // `fuzzer.makeBuilder()` will create a fresh instance without state.
+        // Result is that calls such as `b.hasVisibleVariables` will always be
+        // false. To solve this, we need to rebuild the program state by copying
+        // over each instruction with `b.append()` step by step.
+        //
+        // Doing so and then calling `b.calculateDifferentialHash()` will result
+        // in the `DifferentialHash` always being the last instruction, instead
+        // of being inserted at random places though. That is because the
+        // PostProcessor will be invoked right before executing the program, no
+        // other code generation will happen.
+        //
+        // To fix this, choose a random `insertionPoint`, copy the program up to
+        // this point, then do `b.calculateDifferentialHash()`, and continue to
+        // copy the rest of the program.
+        //
+        // It may be possible that the random point will be at a position w/o any
+        // visible variables (for instance at index 0), so repeat up to 5 times.
+        var currentAttempt = 0
+        while currentAttempt < 5 {
+            let b = fuzzer.makeBuilder(forMutating: program)
+
+            let insertionPoint = Int.random(in: 0..<program.code.count)
+            for i in 0..<insertionPoint {
+                b.append(program.code[i])
+            }
+            
+            if b.hasVisibleVariables {
+                b.calculateDifferentialHash(ofVariable: b.randomVariable())
+                for i in insertionPoint..<program.code.count {
+                    b.append(program.code[i])
+                }
+                return b.finalize()
+            }
+            
+            currentAttempt += 1
+        }
+
+        return program
+    }
 }
 
 let v8MaglevDifferentialFuzzingProfile = Profile(
@@ -111,14 +166,40 @@ let v8MaglevDifferentialFuzzingProfile = Profile(
             "--harmony",
             "--js-staging",
             "--wasm-staging",
-
             "--predictable",
             // Suppress certain unspecified behaviors to ease correctness fuzzing:
             // Abort program when the stack overflows or a string exceeds maximum
             // length (as opposed to throwing RangeError). Use a fixed suppression
             // string for error messages.
             "--correctness-fuzzer-suppressions",
-            "--invocation-count-for-maglev=95",
+
+            // Disable other two JIT compilers.
+            "--no-sparkplug",
+            "--no-turbofan",
+
+            // == Maglev specific flags ==
+
+            // // Optimization will happen after 95 invocations, not 400 (default value).
+            // // 95 Ensures that optimization will happen in ForceJITCompilationThroughLoopGenerator.
+            // "--invocation-count-for-maglev=95",
+
+            // // OSR = On Stack Replacement. Q: Does that mean 95+23? ^
+            // "--invocation-count-for-maglev-osr=23",
+
+            // Enable maglev features that will be shipped in the not-too-far future.
+            "--maglev-future",
+
+            // Stress maglev by setting a very low interrupt budget for maglev.
+            "--stress-maglev",
+
+            // Inline nested functions up to 4 layers deep. Default is 1.
+            "--max-maglev-inline-depth=4",
+
+            // Insert extra assertion in maglev code.
+            "--maglev-assert",
+
+            // Print Maglev statistics in machine-readable format. Always starts with "Maglev_
+            "--maglev-stats-nvp",
         ]
 
         guard randomize else { return args }
@@ -174,7 +255,6 @@ let v8MaglevDifferentialFuzzingProfile = Profile(
             if probability(0.5) { args.append("--stress-gc-during-compilation") }
             if probability(0.5) { args.append("--lazy-new-space-shrinking") }
             if probability(0.5) { args.append("--const-tracking-let") }
-            if probability(0.5) { args.append("--stress-wasm-memory-moving") }
             if probability(0.5) { args.append("--stress-background-compile") }
             if probability(0.5) { args.append("--parallel-compile-tasks-for-lazy") }
             if probability(0.5) { args.append("--parallel-compile-tasks-for-eager-toplevel") }
@@ -196,12 +276,19 @@ let v8MaglevDifferentialFuzzingProfile = Profile(
 
     maxExecsBeforeRespawn: 1000,
 
-    timeout: 500,
+    timeout: 250,
 
     codePrefix: """
+                function main() {
                 """,
 
     codeSuffix: """
+                }
+                %PrepareFunctionForOptimization(main);
+                main();
+                main();
+                %OptimizeMaglevOnNextCall(main);
+                main();
                 """,
 
     ecmaVersion: ECMAScriptVersion.es6,
@@ -228,16 +315,12 @@ let v8MaglevDifferentialFuzzingProfile = Profile(
     differentialCrashingFalsePositives: ["Aborting on "],
 
     additionalCodeGenerators: [
-        (ForceJITCompilationThroughLoopGenerator,  25),
-        (ForceMaglevCompilationGenerator,          25),
+        // (ForceJITCompilationThroughLoopGenerator,  25),
+        // (ForceMaglevCompilationGenerator,          25),
 
-        (WorkerGenerator,                         10),
         (GcGenerator,                             10),
 
-        // (WasmStructGenerator,                     15),
-        // (WasmArrayGenerator,                      15),
-
-        (DifferentialHashGenerator,               80),
+        // (DifferentialHashGenerator,               80),
     ],
 
     additionalProgramTemplates: WeightedList<ProgramTemplate>([]),
@@ -255,5 +338,5 @@ let v8MaglevDifferentialFuzzingProfile = Profile(
     additionalObjectGroups: [],
 
     // TODO(tobias@soppa.me): Add.
-    optionalPostProcessor: nil
+    optionalPostProcessor: DifferentialHashPostProcessor()
 )

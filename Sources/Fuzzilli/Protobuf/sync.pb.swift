@@ -198,6 +198,24 @@ public struct Fuzzilli_Protobuf_Statistics: @unchecked Sendable {
     set {_uniqueStorage()._execsContainingDifferentialOp = newValue}
   }
 
+  /// The number of executions of code that triggered the Maglev JIT compiler.
+  public var maglevExecs: UInt64 {
+    get {return _storage._maglevExecs}
+    set {_uniqueStorage()._maglevExecs = newValue}
+  }
+
+  /// The number of executions of code that triggered the Turbofan JIT compiler.
+  public var turbofanExecs: UInt64 {
+    get {return _storage._turbofanExecs}
+    set {_uniqueStorage()._turbofanExecs = newValue}
+  }
+
+  //// The number of invalid samples produced.
+  public var invalidSamples: UInt64 {
+    get {return _storage._invalidSamples}
+    set {_uniqueStorage()._invalidSamples = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -321,6 +339,9 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     19: .same(proto: "deterministicDifferentialSamples"),
     20: .same(proto: "totalDifferentialTests"),
     21: .same(proto: "execsContainingDifferentialOp"),
+    22: .same(proto: "maglevExecs"),
+    23: .same(proto: "turbofanExecs"),
+    24: .same(proto: "invalidSamples"),
   ]
 
   fileprivate class _StorageClass {
@@ -345,6 +366,9 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     var _deterministicDifferentialSamples: UInt64 = 0
     var _totalDifferentialTests: UInt64 = 0
     var _execsContainingDifferentialOp: UInt64 = 0
+    var _maglevExecs: UInt64 = 0
+    var _turbofanExecs: UInt64 = 0
+    var _invalidSamples: UInt64 = 0
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -380,6 +404,9 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       _deterministicDifferentialSamples = source._deterministicDifferentialSamples
       _totalDifferentialTests = source._totalDifferentialTests
       _execsContainingDifferentialOp = source._execsContainingDifferentialOp
+      _maglevExecs = source._maglevExecs
+      _turbofanExecs = source._turbofanExecs
+      _invalidSamples = source._invalidSamples
     }
   }
 
@@ -419,6 +446,9 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         case 19: try { try decoder.decodeSingularUInt64Field(value: &_storage._deterministicDifferentialSamples) }()
         case 20: try { try decoder.decodeSingularUInt64Field(value: &_storage._totalDifferentialTests) }()
         case 21: try { try decoder.decodeSingularUInt64Field(value: &_storage._execsContainingDifferentialOp) }()
+        case 22: try { try decoder.decodeSingularUInt64Field(value: &_storage._maglevExecs) }()
+        case 23: try { try decoder.decodeSingularUInt64Field(value: &_storage._turbofanExecs) }()
+        case 24: try { try decoder.decodeSingularUInt64Field(value: &_storage._invalidSamples) }()
         default: break
         }
       }
@@ -490,6 +520,15 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       if _storage._execsContainingDifferentialOp != 0 {
         try visitor.visitSingularUInt64Field(value: _storage._execsContainingDifferentialOp, fieldNumber: 21)
       }
+      if _storage._maglevExecs != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._maglevExecs, fieldNumber: 22)
+      }
+      if _storage._turbofanExecs != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._turbofanExecs, fieldNumber: 23)
+      }
+      if _storage._invalidSamples != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._invalidSamples, fieldNumber: 24)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -520,6 +559,9 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         if _storage._deterministicDifferentialSamples != rhs_storage._deterministicDifferentialSamples {return false}
         if _storage._totalDifferentialTests != rhs_storage._totalDifferentialTests {return false}
         if _storage._execsContainingDifferentialOp != rhs_storage._execsContainingDifferentialOp {return false}
+        if _storage._maglevExecs != rhs_storage._maglevExecs {return false}
+        if _storage._turbofanExecs != rhs_storage._turbofanExecs {return false}
+        if _storage._invalidSamples != rhs_storage._invalidSamples {return false}
         return true
       }
       if !storagesAreEqual {return false}

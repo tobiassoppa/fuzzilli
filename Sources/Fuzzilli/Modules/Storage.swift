@@ -21,6 +21,7 @@ public class Storage: Module {
     private let duplicateCrashesDir: String
     private let differentialsDir: String
     private let duplicateDifferentialsDir: String
+    private let maglevStatisticsDir: String
     private let corpusDir: String
     private let statisticsDir: String
     private let stateFile: String
@@ -39,6 +40,7 @@ public class Storage: Module {
         self.duplicateCrashesDir = storageDir + "/crashes/duplicates"
         self.differentialsDir = storageDir + "/differentials"
         self.duplicateDifferentialsDir = storageDir + "/differentials/duplicates"
+        self.maglevStatisticsDir = storageDir + "/maglevStatistics"
         self.corpusDir = storageDir + "/corpus"
         self.failedDir = storageDir + "/failed"
         self.timeOutDir = storageDir + "/timeouts"
@@ -58,6 +60,7 @@ public class Storage: Module {
             try FileManager.default.createDirectory(atPath: duplicateCrashesDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: differentialsDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: duplicateDifferentialsDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(atPath: maglevStatisticsDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: corpusDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: statisticsDir, withIntermediateDirectories: true)
             if fuzzer.config.enableDiagnostics {
@@ -109,6 +112,35 @@ public class Storage: Module {
                 self.storeProgram(ev.program, as: filename, in: self.duplicateDifferentialsDir)
             }
         }
+
+        // fuzzer.registerEventListener(for: fuzzer.events.MaglevTriggered) { ev in
+        //     // let date = self.formatDate()
+        //     let millis = String(currentMillis())
+        //     // let url = URL(fileURLWithPath: "\(self.maglevStatisticsDir)/\(date)_\(millis).json")
+        //     let url = URL(fileURLWithPath: "\(self.maglevStatisticsDir)/\(ev.program.id).json")
+
+        //     let formattedMaglevStats = ev.maglevStats.map { string -> String in
+        //         let components = string.split(separator: "=", maxSplits: 1)
+        //         guard components.count == 2 else { return string }
+                
+        //         let key = components[0].trimmingCharacters(in: .whitespaces)
+        //         let value = components[1].trimmingCharacters(in: .whitespaces)
+                
+        //         return "\(key): \"\(value)\""
+        //     }
+
+        //     let jsonString = #"""
+        //     {
+        //         "timestamp": "\#(millis)",
+        //         "programSize": "\#(ev.program.size)",
+        //         "callsFuzzilliHash": "\#(ev.containsDifferentialOperation)",
+        //         \#(formattedMaglevStats.joined(separator: ",\n    "))
+        //     }
+        //     """#
+            
+        //     self.createFile(url, withContent: jsonString)
+
+        // }
 
         fuzzer.registerEventListener(for: fuzzer.events.InterestingProgramFound) { ev in
             let filename = "program_\(self.formatDate())_\(ev.program.id)"

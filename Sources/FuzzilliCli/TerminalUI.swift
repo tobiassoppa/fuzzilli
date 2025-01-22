@@ -140,6 +140,7 @@ class TerminalUI {
         Interesting Samples Found:    \(stats.interestingSamples)
         Last Interesting Sample:      \(formatTimeInterval(timeSinceLastInterestingProgram))
         Valid Samples Found:          \(stats.validSamples)
+        Invalid Samples Found:        \(stats.invalidSamples)
         Corpus Size:                  \(fuzzer.corpus.size)\(maybeAvgCorpusSize)
         Correctness Rate:             \(String(format: "%.2f%%", stats.correctnessRate * 100)) (overall: \(String(format: "%.2f%%", stats.overallCorrectnessRate * 100)))
         Timeout Rate:                 \(String(format: "%.2f%%", stats.timeoutRate * 100)) (overall: \(String(format: "%.2f%%", stats.overallTimeoutRate * 100)))
@@ -160,6 +161,8 @@ class TerminalUI {
         Total programs calling fuzzilli_hash():  \(stats.execsContainingDifferentialOp)
         Flaky Differentials Found:               \(stats.flakyDifferentialSamples)
         Deterministic Differentials Found:       \(stats.deterministicDifferentialSamples)
+        Num of execs that triggered Maglev:      \(stats.maglevExecs)
+        Num of execs that triggered Turbofan:    \(stats.turbofanExecs)
         """)
     }
 

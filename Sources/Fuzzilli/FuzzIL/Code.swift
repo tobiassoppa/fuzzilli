@@ -128,6 +128,17 @@ public struct Code: Collection {
         return instr.op === self[idx].op && instr.inouts == self[idx].inouts
     }
 
+    /// Workaround helper because profiles have no access to JsOperations.
+    public func containsDifferential() -> Bool {
+        let result = instructions.contains(where: { $0.op is DifferentialHash })
+        // if result {
+        //     print("CONTAINS differential")
+        // } else {
+        //     print("DOES NOT CONTAIN differential")
+        // }
+        return result
+    }
+
     /// Replaces an instruction with a different one.
     ///
     /// - Parameters:

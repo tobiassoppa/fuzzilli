@@ -76,6 +76,9 @@ public class Events {
     /// Signals that a differential test was performed.
     public let PostDifferentialExecute = Event<Execution>()
 
+    public let MaglevTriggered = Event<Execution>()
+
+    public let TurbofanTriggered = Event<Execution>()
     /// In distributed fuzzing, signals that this child node has synchronized with its parent node.
     /// This event is guaranteed to be dispatched at most once, but may not be dispatched at
     /// all, for example if this node is configured to use its own corpus and so does not synchronize

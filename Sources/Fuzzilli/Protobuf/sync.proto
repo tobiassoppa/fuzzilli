@@ -81,4 +81,28 @@ message Statistics {
 
         /// The timeout rate of recently generated programs (number of timeouts divided by number of generated programs).
         double timeoutRate = 17;
+
+        /// The number of flaky differentials found.
+        uint64 flakyDifferentialSamples = 18;
+
+        /// The number of deterministic differentials found.
+        uint64 deterministicDifferentialSamples = 19;
+
+        /// The total number of differential tests performed.
+        uint64 totalDifferentialTests = 20;
+        // TODO(tobias@soppa.me): Rename? Will be called after interpreter execution, so it effectively only tells us how often that happened.
+        // BUT PostExecute will be called twice and PostDifferentialExecute only once, so we could also tell if for some reason only one
+        // instead of two executions happened.
+
+        /// The number of executions of code that actually contains the DifferentialHash operation.
+        uint64 execsContainingDifferentialOp = 21;
+
+        // The number of executions of code that triggered the Maglev JIT compiler.
+        uint64 maglevExecs = 22;
+
+        // The number of executions of code that triggered the Turbofan JIT compiler.
+        uint64 turbofanExecs = 23;
+
+        /// The number of invalid samples produced.
+        uint64 invalidSamples = 24;
 }

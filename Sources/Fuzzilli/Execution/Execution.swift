@@ -55,9 +55,9 @@ public protocol Execution {
     // created on-demand, while keeping the interface in here unchanged?
 
     var outcome: ExecutionOutcome { get set }
-    var stdout: String { get }
-    var stderr: String { get }
-    var fuzzout: String { get }
+    var stdout: String { get set }
+    var stderr: String { get set }
+    var fuzzout: String { get set }
     var execTime: TimeInterval { get set }
     /// A serialized version of (some of) the programs variables after
     /// execution is finished. Might be empty if the result was not requested

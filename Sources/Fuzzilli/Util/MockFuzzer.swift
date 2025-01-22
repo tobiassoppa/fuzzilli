@@ -18,9 +18,9 @@ import Foundation
 
 struct MockExecution: Execution {
     var outcome: ExecutionOutcome
-    let stdout: String
-    let stderr: String
-    let fuzzout: String
+    var stdout: String
+    var stderr: String
+    var fuzzout: String
     var execTime: TimeInterval
     let differentialResult: Int
 }

@@ -85,12 +85,15 @@ public class Statistics: Module {
             // Add "global" fields, even from nodes that are no longer active
             data.totalSamples += node.totalSamples
             data.validSamples += node.validSamples
+            data.invalidSamples += node.invalidSamples
             data.timedOutSamples += node.timedOutSamples
             data.totalExecs += node.totalExecs
             data.flakyDifferentialSamples += node.flakyDifferentialSamples
             data.deterministicDifferentialSamples += node.deterministicDifferentialSamples
             data.totalDifferentialTests += node.totalDifferentialTests
             data.execsContainingDifferentialOp += node.execsContainingDifferentialOp
+            data.maglevExecs += node.maglevExecs
+            data.turbofanExecs += node.turbofanExecs
 
             if !inactiveNodes.contains(id) {
                 // Add fields that only have meaning for active nodes
@@ -140,6 +143,7 @@ public class Statistics: Module {
             } else {
                 assert(true == false, "Impossible case.")
             }
+            // TODO: Make it only `differentialSamples` to be consistent with other cases.
         }
         fuzzer.registerEventListener(for: fuzzer.events.TimeOutFound) { _ in
             self.ownData.timedOutSamples += 1
@@ -147,6 +151,8 @@ public class Statistics: Module {
             self.timeoutRate.add(1.0)
         }
         fuzzer.registerEventListener(for: fuzzer.events.InvalidProgramFound) { _ in
+            // self.logger.warning("ADD COUNTER FOR INVALID PROGRAMS")
+            self.ownData.invalidSamples += 1
             self.correctnessRate.add(0.0)
             self.timeoutRate.add(0.0)
         }
@@ -184,6 +190,20 @@ public class Statistics: Module {
 
             let overhead = 1.0 - (exec.execTime / totalTime)
             self.fuzzerOverheadAvg.add(overhead)
+        }
+        // TODO(tobias@soppa.me): Really have a second look here. Why is this helpful? Remove? Or add more stuff here
+        // that mimics PostExecute, so we can track more fine grained? I think this should be changed to contains both
+        // JIT and interpreter executions, then it can record detailled data especially w.r.t. maglev-stats-nvp, maybe
+        // even one entry per execution? Because these are probably not just simple counters, but really more like
+        // Filesize X, contained fuzzilli_hash() or not, triggered maglev N times, total time in MS, total space in bytes
+        fuzzer.registerEventListener(for: fuzzer.events.PostDifferentialExecute) { exec in
+            self.ownData.totalDifferentialTests += 1 // This is more like "TotalNumberOfInterpreterInvocations"
+        }
+        fuzzer.registerEventListener(for: fuzzer.events.MaglevTriggered) { exec in
+            self.ownData.maglevExecs += 1
+        }
+        fuzzer.registerEventListener(for: fuzzer.events.TurbofanTriggered) { exec in
+            self.ownData.turbofanExecs += 1
         }
         fuzzer.registerEventListener(for: fuzzer.events.InterestingProgramFound) { ev in
             self.ownData.interestingSamples += 1
